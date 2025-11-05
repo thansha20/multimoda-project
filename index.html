@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal Emotion Fusion Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script src="https://www.webrtc-experiment.com/RecordRTC.js"></script>
+
+    <style>
+        body { background-color: #f8f9fa; }
+        .header-title { color: #0d6efd; font-weight: 700; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .video-container { border: 3px solid #333; box-shadow: 0 0 15px rgba(0, 0, 0, 0.3); border-radius: 10px; overflow: hidden; background: #000; }
+        #video-feed { width: 100%; height: auto; display: block; }
+        
+        /* Dynamic Emotion Coloring for FINAL RESULT */
+        .emotion-final-box { font-size: 2.2rem; font-weight: bold; padding: 20px; margin-bottom: 20px; border-radius: 8px; text-align: center; transition: all 0.3s ease-in-out; }
+        .emotion-final-happy { background-color: #d1e7dd; color: #0f5132; border: 2px solid #198754; }
+        .emotion-final-sad { background-color: #cfe2ff; color: #084298; border: 2px solid #0d6efd; }
+        .emotion-final-angry { background-color: #f8d7da; color: #842029; border: 2px solid #dc3545; }
+        .emotion-final-surprise { background-color: #fff3cd; color: #664d03; border: 2px solid #ffc107; }
+        .emotion-final-calm { background-color: #f0f0f0; color: #0056b3; border: 2px solid #0056b3; }
+        .emotion-final-neutral, .emotion-final-input { background-color: #e9ecef; color: #495057; border: 2px solid #6c757d; }
+        
+        .input-card { min-height: 400px; }
+        
+        /* Custom styles for the recording buttons */
+        #record-status { font-weight: bold; }
+        .is-recording { color: red; }
+    </style>
+</head>
+<body>
+    
+    <div class="container my-5">
+        <h1 class="text-center mb-5 header-title">
+            Multimodal Emotion Fusion Engine 🧠
+        </h1>
+
+        <div class="row">
+            
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-lg input-card">
+                    <div class="card-header bg-dark text-white text-center">
+                        <h5 class="mb-0">Live Visual Stream & Analysis</h5>
+                    </div>
+                    <div class="card-body p-2 video-container">
+                        <img id="video-feed" src="{{ url_for('video_feed') }}" alt="Webcam Stream is Loading">
+                    </div>
+                    
+                    <div class="card-footer bg-light">
+                        <h4 class="text-center mt-2">FUSED EMOTION</h4>
+                        <div id="final-emotion" class="emotion-final-box emotion-final-input">
+                            READY TO ANALYZE
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-lg input-card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Text & Audio Input</h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <form id="multimodal-form" enctype="multipart/form-data">
+                            
+                            <div class="mb-3">
+                                <label for="text_input" class="form-label fw-bold">1. Text Input (Multilingual)</label>
+                                <textarea id="text_input" name="text_input" class="form-control" rows="3" placeholder="Enter text in any language (e.g., 'Je suis très heureux')"></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">2. Audio Input (Live Record or Upload)</label>
+                                
+                                <div class="input-group">
+                                    <input type="file" id="audio_file_upload" name="audio_file" class="form-control" accept="audio/*">
+                                </div>
+
+                                <div class="mt-2 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="record-start">
+                                        <i class="fas fa-microphone"></i> Start Recording
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="record-stop" disabled>
+                                        <i class="fas fa-stop-circle"></i> Stop Recording
+                                    </button>
+                                </div>
+                                
+                                <div class="mt-2 text-center">
+                                    <span id="record-status" class="text-secondary">Ready</span>
+                                </div>
+                                <input type="hidden" name="recorded_audio" id="recorded_audio_blob">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success btn-lg w-100 mt-3" id="analyze-button">
+                                ANALYZE & FUSE INPUTS
+                            </button>
+                            <div id="loading" class="text-center mt-3" style="display:none;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="card-footer bg-light">
+                        <h5 class="text-primary">Detailed Analysis Breakdown</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">Visual (Live): <span class="fw-bold" id="visual-emotion">Streaming...</span></li>
+                            <li class="list-group-item">Text Detected: <span class="fw-bold" id="translated-text">N/A</span></li>
+                            <li class="list-group-item">Text Emotion: <span class="fw-bold" id="text-emotion">N/A</span></li>
+                            <li class="list-group-item">Speech Emotion: <span class="fw-bold" id="speech-emotion">N/A</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+
+    <script>
+        var recorder; // Global variable for RecordRTC
+        var audioBlob;
+
+        // Function to update the Visual Emotion score in the detail box every 1 second
+        function updateVisualEmotion() {
+            $.getJSON('/get_visual_emotion', function(data) {
+                $('#visual-emotion').text(data.visual_emotion.toUpperCase());
+            });
+        }
+        setInterval(updateVisualEmotion, 1000); // Run every 1000 milliseconds (1 second)
+
+
+        $(document).ready(function() {
+            // --- LIVE AUDIO RECORDING LOGIC ---
+
+            $('#record-start').click(function() {
+                // Request microphone access
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+                    recorder = RecordRTC(stream, {
+                        type: 'audio',
+                        mimeType: 'audio/webm' // WebM is widely supported and lightweight
+                    });
+                    recorder.startRecording();
+                    
+                    // Update UI state
+                    $('#record-status').text('Recording...').addClass('is-recording');
+                    $('#record-start').prop('disabled', true).removeClass('btn-outline-danger').addClass('btn-danger');
+                    $('#record-stop').prop('disabled', false);
+                    $('#audio_file_upload').prop('disabled', true); // Disable file upload while recording
+                    
+                    // Hide previous recorded blob if any
+                    audioBlob = null; 
+
+                }).catch(function(error) {
+                    alert('Microphone access denied or error: ' + error.name);
+                    console.error('Recording error:', error);
+                });
+            });
+
+            $('#record-stop').click(function() {
+                recorder.stopRecording(function() {
+                    audioBlob = recorder.getBlob();
+                    
+                    // Update UI state
+                    $('#record-status').text('Recorded! Click Analyze').removeClass('is-recording');
+                    $('#record-start').prop('disabled', false).removeClass('btn-danger').addClass('btn-outline-danger');
+                    $('#record-stop').prop('disabled', true);
+                    $('#audio_file_upload').prop('disabled', false); 
+                    
+                    // Clear the recorder and stream
+                    recorder.stream.stop();
+                    recorder = null;
+                });
+            });
+
+
+            // --- FORM SUBMISSION LOGIC ---
+            $('#multimodal-form').submit(function(e) {
+                e.preventDefault();
+                
+                var formData = new FormData();
+                formData.append('text_input', $('#text_input').val());
+
+                // 1. Prioritize Recorded Audio
+                if (audioBlob) {
+                    // Append the recorded blob with a filename
+                    formData.append('audio_file', audioBlob, 'recorded_audio.webm');
+                } 
+                // 2. Fallback to Uploaded File
+                else if ($('#audio_file_upload')[0].files.length > 0) {
+                    formData.append('audio_file', $('#audio_file_upload')[0].files[0]);
+                }
+                
+                $('#loading').show();
+                $('#analyze-button').prop('disabled', true).text('Analyzing...');
+                $('#final-emotion').removeClass().addClass('emotion-final-box emotion-final-input').text('FUSING DATA...');
+
+
+                $.ajax({
+                    url: '/process_text_audio',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        $('#loading').hide();
+                        $('#analyze-button').prop('disabled', false).text('ANALYZE & FUSE INPUTS');
+                        
+                        // Update the final emotion box
+                        var finalEmotion = response.final_emotion.toLowerCase();
+                        var cssClass = 'emotion-final-' + finalEmotion;
+
+                        $('#final-emotion').removeClass().addClass('emotion-final-box ' + cssClass).text(response.final_emotion.toUpperCase());
+
+                        // Update the detailed results breakdown
+                        $('#translated-text').text(response.translated_text + (response.lang_status !== 'ENGLISH' && response.lang_status !== 'N/A' ? ' (' + response.lang_status + ')' : ''));
+                        $('#text-emotion').text(response.text_emotion);
+                        $('#speech-emotion').text(response.speech_emotion);
+                        // Visual emotion is updated by the interval function now, so we just show the latest value
+                        $('#visual-emotion').text(response.visual_emotion); 
+                    },
+                    error: function(xhr, status, error) {
+                        $('#loading').hide();
+                        $('#analyze-button').prop('disabled', false).text('ANALYZE & FUSE INPUTS');
+                        
+                        $('#final-emotion').removeClass().addClass('emotion-final-box emotion-final-angry').text('SERVER ERROR');
+                        
+                        var errorMessage = "An error occurred during analysis. Check the terminal for backend details.";
+                        if(xhr.responseJSON && xhr.responseJSON.error) {
+                             errorMessage = "Server Error: " + xhr.responseJSON.error.substring(0, 100) + "...";
+                        }
+                        alert(errorMessage);
+                        console.error("AJAX Error:", status, error, xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
